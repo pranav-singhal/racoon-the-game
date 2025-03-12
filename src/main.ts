@@ -33,7 +33,6 @@ let obstacles: THREE.Object3D[] = []
 let collectibles: THREE.Object3D[] = []
 let clouds: THREE.Object3D[] = []
 let trees: THREE.Object3D[] = []
-let currentLane = 1 // 0: left, 1: center, 2: right
 let targetLanePosition = 0
 let mouseX = 0
 let lastMouseX = 0
@@ -65,7 +64,6 @@ function init() {
   collectibles = []
   clouds = []
   trees = []
-  currentLane = 1
   targetLanePosition = 0
   isJumping = false
   jumpVelocity = 0
@@ -828,9 +826,7 @@ function updateRaccoonPosition() {
   
   // Add a slight tilt when moving
   raccoon.rotation.z = (targetLanePosition - raccoon.position.x) * -0.5
-  
-  // Determine current lane
-  currentLane = Math.round(raccoon.position.x / LANE_WIDTH) + 1
+
 }
 
 // Update jump physics separately from position updates
@@ -1002,8 +998,6 @@ function checkSpecialCloverCount() {
     
     document.body.appendChild(specialMessage)
     
-    // Visual effects on the raccoon
-    const originalScale = { x: 1, y: 1, z: 1 }
     
     // Store original colors of raccoon parts with proper typing
     interface ColorData {
