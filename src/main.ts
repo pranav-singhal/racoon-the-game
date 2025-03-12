@@ -328,41 +328,115 @@ function generateWorld() {
 
 // Create an obstacle
 function createObstacle(lane: number, z: number) {
-  // Randomly choose obstacle type
-  const obstacleType = Math.floor(Math.random() * 3)
-  let obstacle: THREE.Mesh
+  // Randomly choose trash can type
+  const trashCanType = Math.floor(Math.random() * 3)
+  let obstacle: THREE.Group
   
-  switch (obstacleType) {
-    case 0: // Rock
-      const rockGeometry = new THREE.SphereGeometry(0.7, 8, 8)
-      const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 }) // Gray color
-      obstacle = new THREE.Mesh(rockGeometry, rockMaterial)
-      obstacle.position.y = 0.3
+  // Create a group for the trash can
+  obstacle = new THREE.Group()
+  
+  switch (trashCanType) {
+    case 0: // Standard cylindrical trash can
+      // Trash can body
+      const standardBodyGeometry = new THREE.CylinderGeometry(0.4, 0.5, 1.0, 16)
+      const standardBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 }) // Dark gray
+      const standardBody = new THREE.Mesh(standardBodyGeometry, standardBodyMaterial)
+      standardBody.position.y = 0.5
+      standardBody.castShadow = true
+      obstacle.add(standardBody)
+      
+      // Trash can lid
+      const standardLidGeometry = new THREE.CylinderGeometry(0.45, 0.45, 0.1, 16)
+      const standardLidMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 }) // Darker gray
+      const standardLid = new THREE.Mesh(standardLidGeometry, standardLidMaterial)
+      standardLid.position.y = 1.05
+      standardLid.castShadow = true
+      obstacle.add(standardLid)
+      
+      // Add some details - handle
+      const handleGeometry = new THREE.BoxGeometry(0.1, 0.2, 0.1)
+      const handleMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 })
+      const handle = new THREE.Mesh(handleGeometry, handleMaterial)
+      handle.position.set(0, 1.0, 0.5)
+      obstacle.add(handle)
+      
       break
-    case 1: // Tree stump
-      const stumpGeometry = new THREE.CylinderGeometry(0.5, 0.7, 1, 8)
-      const stumpMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }) // Brown color
-      obstacle = new THREE.Mesh(stumpGeometry, stumpMaterial)
-      obstacle.position.y = 0.5
+      
+    case 1: // Square trash can
+      // Trash can body
+      const squareBodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.8)
+      const squareBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x2E8B57 }) // Sea green
+      const squareBody = new THREE.Mesh(squareBodyGeometry, squareBodyMaterial)
+      squareBody.position.y = 0.6
+      squareBody.castShadow = true
+      obstacle.add(squareBody)
+      
+      // Trash can lid
+      const squareLidGeometry = new THREE.BoxGeometry(0.85, 0.1, 0.85)
+      const squareLidMaterial = new THREE.MeshStandardMaterial({ color: 0x1D704A }) // Darker green
+      const squareLid = new THREE.Mesh(squareLidGeometry, squareLidMaterial)
+      squareLid.position.y = 1.25
+      squareLid.castShadow = true
+      obstacle.add(squareLid)
+      
+      // Add recycling symbol
+      const symbolGeometry = new THREE.BoxGeometry(0.4, 0.01, 0.4)
+      const symbolMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }) // White
+      const symbol = new THREE.Mesh(symbolGeometry, symbolMaterial)
+      symbol.position.set(0, 0.8, 0.41)
+      symbol.rotation.x = Math.PI / 2
+      obstacle.add(symbol)
+      
       break
-    case 2: // Barrel
-      const barrelGeometry = new THREE.CylinderGeometry(0.6, 0.6, 1.2, 16)
-      const barrelMaterial = new THREE.MeshStandardMaterial({ color: 0xA52A2A }) // Brown color
-      obstacle = new THREE.Mesh(barrelGeometry, barrelMaterial)
-      obstacle.position.y = 0.6
+      
+    case 2: // Domed lid trash can
+      // Trash can body
+      const domeBodyGeometry = new THREE.CylinderGeometry(0.45, 0.4, 0.9, 16)
+      const domeBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x4682B4 }) // Steel blue
+      const domeBody = new THREE.Mesh(domeBodyGeometry, domeBodyMaterial)
+      domeBody.position.y = 0.45
+      domeBody.castShadow = true
+      obstacle.add(domeBody)
+      
+      // Domed lid
+      const domeLidGeometry = new THREE.SphereGeometry(0.45, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2)
+      const domeLidMaterial = new THREE.MeshStandardMaterial({ color: 0x36648B }) // Darker blue
+      const domeLid = new THREE.Mesh(domeLidGeometry, domeLidMaterial)
+      domeLid.position.y = 0.9
+      domeLid.castShadow = true
+      obstacle.add(domeLid)
+      
+      // Add a swinging door on the dome
+      const doorGeometry = new THREE.BoxGeometry(0.3, 0.1, 0.01)
+      const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x36648B }) // Matching blue
+      const door = new THREE.Mesh(doorGeometry, doorMaterial)
+      door.position.set(0, 0.9, 0.45)
+      door.rotation.x = Math.PI / 4 // Slightly open
+      obstacle.add(door)
+      
       break
+      
     default:
-      const defaultGeometry = new THREE.BoxGeometry(1, 1, 1)
-      const defaultMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000 }) // Red color
-      obstacle = new THREE.Mesh(defaultGeometry, defaultMaterial)
-      obstacle.position.y = 0.5
+      // Fallback to a simple trash can
+      const fallbackGeometry = new THREE.CylinderGeometry(0.4, 0.4, 1.0, 12)
+      const fallbackMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 })
+      const fallbackBody = new THREE.Mesh(fallbackGeometry, fallbackMaterial)
+      fallbackBody.position.y = 0.5
+      fallbackBody.castShadow = true
+      obstacle.add(fallbackBody)
   }
+  
+  // Add some random variation to size
+  const scale = 0.8 + Math.random() * 0.4 // Scale between 0.8 and 1.2
+  obstacle.scale.set(scale, scale, scale)
+  
+  // Add some random rotation for variety
+  obstacle.rotation.y = Math.random() * Math.PI * 2
   
   // Position the obstacle
   const lanePosition = getLanePosition(lane)
   obstacle.position.x = lanePosition
   obstacle.position.z = z
-  obstacle.castShadow = true
   obstacle.userData = { type: 'obstacle' }
   
   scene.add(obstacle)
