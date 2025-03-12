@@ -12,6 +12,8 @@ const WORLD_DEPTH = 100
 const JUMP_FORCE = 0.2 
 const GRAVITY = 0.008
 const SAFE_START_DISTANCE = 40 // Distance at the start with no obstacles
+const CLOUD_COUNT = 15 // Number of clouds in the sky
+const TREE_COUNT = 30 // Number of trees on each side
 
 // Game state
 let score = 0
@@ -28,6 +30,8 @@ let raccoon: THREE.Group
 let path: THREE.Mesh
 let obstacles: THREE.Object3D[] = []
 let collectibles: THREE.Object3D[] = []
+let clouds: THREE.Object3D[] = []
+let trees: THREE.Object3D[] = []
 let currentLane = 1 // 0: left, 1: center, 2: right
 let targetLanePosition = 0
 let mouseX = 0
@@ -55,6 +59,8 @@ function init() {
   countdownValue = 3
   obstacles = []
   collectibles = []
+  clouds = []
+  trees = []
   currentLane = 1
   targetLanePosition = 0
   isJumping = false
@@ -72,10 +78,7 @@ function init() {
     0.1,
     1000
   )
-  // Position camera behind and slightly above the raccoon
-  camera.position.set(0, 4, 8)
-  camera.lookAt(0, 0, -15)
-
+  
   // Create renderer
   renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setSize(window.innerWidth, window.innerHeight)
@@ -102,11 +105,21 @@ function init() {
 
   // Create the running path
   createPath()
+  
+  // Create environmental elements
+  createClouds()
+  createTrees()
 
   // Create the raccoon character
   createRaccoon()
   raccoonDefaultY = 0
-
+  
+  // Position camera to make road start from bottom of screen and zoom in on raccoon
+  camera.position.set(0, 8, 16) // Lower and closer to the raccoon
+  camera.rotation.x = -0.3 // Less steep angle to shift scene down
+  camera.fov = 55 // Even narrower field of view for more zoom
+  camera.updateProjectionMatrix() // Apply the new field of view
+  
   // Generate initial world with a safe start area
   generateWorld()
 
@@ -146,29 +159,281 @@ function startCountdown() {
 
 // Create the running path
 function createPath() {
-  const pathGeometry = new THREE.BoxGeometry(LANE_WIDTH * LANE_COUNT, 0.5, WORLD_DEPTH)
-  const pathMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 }) // Brown color for the path
+  // Create a textured path with more details
+  const pathWidth = LANE_WIDTH * LANE_COUNT
+  const pathLength = WORLD_DEPTH
+  
+  // Create the base path
+  const pathGeometry = new THREE.BoxGeometry(pathWidth, 0.5, pathLength)
+  
+  // Create a more realistic dirt path texture
+  const pathMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513, // Brown color for the path
+    roughness: 0.9,
+    metalness: 0.1
+  })
+  
   path = new THREE.Mesh(pathGeometry, pathMaterial)
   path.position.y = -0.25
-  path.position.z = -WORLD_DEPTH / 2
+  path.position.z = -pathLength / 2 + 15 // Move the path forward more so it starts at the bottom of the screen
   path.receiveShadow = true
   scene.add(path)
+  
+  // Add lane markings
+  for (let i = 1; i < LANE_COUNT; i++) {
+    const markingGeometry = new THREE.BoxGeometry(0.1, 0.01, pathLength)
+    const markingMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFFFFF,
+      emissive: 0xFFFFFF,
+      emissiveIntensity: 0.2
+    })
+    
+    const marking = new THREE.Mesh(markingGeometry, markingMaterial)
+    marking.position.x = (i - LANE_COUNT / 2) * LANE_WIDTH + LANE_WIDTH / 2
+    marking.position.y = 0.01
+    marking.position.z = -pathLength / 2 + 15 // Match the path position
+    scene.add(marking)
+  }
+  
+  // Add small rocks and details to the path
+  for (let i = 0; i < 100; i++) {
+    const rockSize = 0.05 + Math.random() * 0.1
+    const rockGeometry = new THREE.SphereGeometry(rockSize, 4, 4)
+    const rockMaterial = new THREE.MeshStandardMaterial({ 
+      color: Math.random() > 0.5 ? 0x777777 : 0x999999,
+      roughness: 1.0
+    })
+    
+    const rock = new THREE.Mesh(rockGeometry, rockMaterial)
+    
+    // Position rocks randomly along the path but not in the center of lanes
+    const laneOffset = (Math.random() - 0.5) * 0.5
+    const lane = Math.floor(Math.random() * LANE_COUNT)
+    const x = (lane - (LANE_COUNT - 1) / 2) * LANE_WIDTH + laneOffset
+    
+    rock.position.set(
+      x,
+      0.01, // Just above the path
+      -Math.random() * pathLength + 15 // Adjust for new path position
+    )
+    
+    rock.rotation.set(
+      Math.random() * Math.PI,
+      Math.random() * Math.PI,
+      Math.random() * Math.PI
+    )
+    
+    rock.castShadow = true
+    rock.receiveShadow = true
+    scene.add(rock)
+  }
 
   // Add grass on the sides
   const grassGeometry = new THREE.BoxGeometry(10, 0.5, WORLD_DEPTH)
-  const grassMaterial = new THREE.MeshStandardMaterial({ color: 0x7CFC00 }) // Light green for grass
+  const grassMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x7CFC00, // Light green for grass
+    roughness: 0.8
+  })
   
   const leftGrass = new THREE.Mesh(grassGeometry, grassMaterial)
   leftGrass.position.x = -((LANE_WIDTH * LANE_COUNT) / 2 + 5)
   leftGrass.position.y = -0.25
-  leftGrass.position.z = -WORLD_DEPTH / 2
+  leftGrass.position.z = -WORLD_DEPTH / 2 + 15 // Match the path position
+  leftGrass.receiveShadow = true
   scene.add(leftGrass)
   
   const rightGrass = new THREE.Mesh(grassGeometry, grassMaterial)
   rightGrass.position.x = (LANE_WIDTH * LANE_COUNT) / 2 + 5
   rightGrass.position.y = -0.25
-  rightGrass.position.z = -WORLD_DEPTH / 2
+  rightGrass.position.z = -WORLD_DEPTH / 2 + 15 // Match the path position
+  rightGrass.receiveShadow = true
   scene.add(rightGrass)
+  
+  // Add grass blades for more realism
+  for (let i = 0; i < 500; i++) {
+    const bladeHeight = 0.2 + Math.random() * 0.3
+    const bladeGeometry = new THREE.BoxGeometry(0.05, bladeHeight, 0.05)
+    const bladeMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x7CFC00 + Math.random() * 0x009900, // Slightly varied green
+      roughness: 1.0
+    })
+    
+    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial)
+    
+    // Position on either left or right grass
+    const side = Math.random() > 0.5 ? 1 : -1
+    const distanceFromPath = (LANE_WIDTH * LANE_COUNT) / 2 + Math.random() * 9
+    
+    blade.position.set(
+      side * distanceFromPath,
+      bladeHeight / 2 - 0.25, // Half height above the grass
+      -Math.random() * WORLD_DEPTH + 15 // Adjust for new path position
+    )
+    
+    // Slight random rotation for natural look
+    blade.rotation.y = Math.random() * Math.PI
+    blade.rotation.x = (Math.random() - 0.5) * 0.2
+    blade.rotation.z = (Math.random() - 0.5) * 0.2
+    
+    blade.castShadow = true
+    scene.add(blade)
+  }
+}
+
+// Create clouds in the sky
+function createClouds() {
+  for (let i = 0; i < CLOUD_COUNT; i++) {
+    const cloud = new THREE.Group()
+    
+    // Number of puffs in this cloud
+    const puffCount = 3 + Math.floor(Math.random() * 5)
+    
+    // Create cloud puffs
+    for (let j = 0; j < puffCount; j++) {
+      const puffSize = 0.8 + Math.random() * 1.5
+      const puffGeometry = new THREE.SphereGeometry(puffSize, 7, 7)
+      const puffMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xFFFFFF,
+        roughness: 0.7,
+        metalness: 0.1,
+        emissive: 0xCCCCCC,
+        emissiveIntensity: 0.1
+      })
+      
+      const puff = new THREE.Mesh(puffGeometry, puffMaterial)
+      
+      // Position puffs to form a cloud shape
+      puff.position.set(
+        (Math.random() - 0.5) * 2 * puffCount,
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 2
+      )
+      
+      cloud.add(puff)
+    }
+    
+    // Position the cloud in the sky
+    cloud.position.set(
+      (Math.random() - 0.5) * 100, // Wide spread on x-axis
+      15 + Math.random() * 10,     // Height in the sky
+      -Math.random() * WORLD_DEPTH + 15 // Adjust for new path position
+    )
+    
+    // Add some random scaling
+    const cloudScale = 1 + Math.random() * 2
+    cloud.scale.set(cloudScale, cloudScale * 0.6, cloudScale)
+    
+    // Store cloud speed for animation
+    cloud.userData = {
+      speed: 0.01 + Math.random() * 0.03
+    }
+    
+    scene.add(cloud)
+    clouds.push(cloud)
+  }
+}
+
+// Create trees on the sides
+function createTrees() {
+  for (let i = 0; i < TREE_COUNT; i++) {
+    // Create a tree for each side
+    createTree(-1, i) // Left side
+    createTree(1, i)  // Right side
+  }
+}
+
+// Create a single tree
+function createTree(side: number, index: number) {
+  const tree = new THREE.Group()
+  
+  // Create the trunk
+  const trunkHeight = 1.5 + Math.random() * 2
+  const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, trunkHeight, 8)
+  const trunkMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513, // Brown
+    roughness: 0.9
+  })
+  
+  const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial)
+  trunk.position.y = trunkHeight / 2
+  trunk.castShadow = true
+  tree.add(trunk)
+  
+  // Create the foliage (different tree types)
+  const treeType = Math.floor(Math.random() * 3)
+  
+  if (treeType === 0) {
+    // Pine tree (conical)
+    const foliageHeight = 2 + Math.random() * 2
+    const foliageGeometry = new THREE.ConeGeometry(1, foliageHeight, 8)
+    const foliageMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x006400, // Dark green
+      roughness: 0.8
+    })
+    
+    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial)
+    foliage.position.y = trunkHeight + foliageHeight / 2 - 0.3
+    foliage.castShadow = true
+    tree.add(foliage)
+  } 
+  else if (treeType === 1) {
+    // Deciduous tree (spherical)
+    const foliageRadius = 1 + Math.random() * 1.5
+    const foliageGeometry = new THREE.SphereGeometry(foliageRadius, 8, 8)
+    const foliageMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x228B22, // Forest green
+      roughness: 0.8
+    })
+    
+    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial)
+    foliage.position.y = trunkHeight + foliageRadius - 0.3
+    foliage.castShadow = true
+    tree.add(foliage)
+  }
+  else {
+    // Multi-layered pine
+    const layers = 2 + Math.floor(Math.random() * 3)
+    const maxRadius = 1.2
+    
+    for (let j = 0; j < layers; j++) {
+      const layerRadius = maxRadius * (1 - j / layers * 0.5)
+      const layerHeight = 0.8
+      
+      const layerGeometry = new THREE.ConeGeometry(layerRadius, layerHeight, 8)
+      const layerMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x006400, // Dark green
+        roughness: 0.8
+      })
+      
+      const layer = new THREE.Mesh(layerGeometry, layerMaterial)
+      layer.position.y = trunkHeight + j * (layerHeight * 0.7)
+      layer.castShadow = true
+      tree.add(layer)
+    }
+  }
+  
+  // Position the tree along the side of the path
+  const distanceFromPath = (LANE_WIDTH * LANE_COUNT) / 2 + 2 + Math.random() * 7
+  const z = -(index * (WORLD_DEPTH / TREE_COUNT)) - Math.random() * (WORLD_DEPTH / TREE_COUNT) + 15 // Adjust for new path position
+  
+  tree.position.set(
+    side * distanceFromPath,
+    0, // At ground level
+    z
+  )
+  
+  // Add slight random rotation
+  tree.rotation.y = Math.random() * Math.PI * 2
+  
+  // Store tree data for animation
+  tree.userData = {
+    swaySpeed: 0.2 + Math.random() * 0.3,
+    swayAmount: 0.01 + Math.random() * 0.02,
+    originalX: side * distanceFromPath
+  }
+  
+  scene.add(tree)
+  trees.push(tree)
 }
 
 // Create the raccoon character
@@ -289,7 +554,7 @@ function createRaccoon() {
   
   // Add raccoon to the scene
   raccoon.position.y = 0
-  raccoon.position.z = 0
+  raccoon.position.z = 6 // Position raccoon a bit further forward for better framing
   // Rotate the raccoon to face forward along the track
   raccoon.rotation.y = Math.PI
   scene.add(raccoon)
@@ -304,7 +569,7 @@ function generateWorld() {
   collectibles = []
   
   // Generate new obstacles and collectibles
-  for (let z = -SAFE_START_DISTANCE; z > -WORLD_DEPTH; z -= OBSTACLE_DISTANCE) {
+  for (let z = -SAFE_START_DISTANCE + 15; z > -WORLD_DEPTH + 15; z -= OBSTACLE_DISTANCE) {
     // Randomly decide which lanes will have obstacles
     const laneObstacles = Array(LANE_COUNT).fill(false).map(() => Math.random() < OBSTACLE_PROBABILITY)
     
@@ -589,7 +854,7 @@ function moveObjects() {
     obstacle.position.z += GAME_SPEED
     
     // Remove obstacles that are behind the camera
-    if (obstacle.position.z > 5) {
+    if (obstacle.position.z > 10) {
       scene.remove(obstacle)
       obstacles = obstacles.filter(o => o !== obstacle)
     }
@@ -603,7 +868,7 @@ function moveObjects() {
     collectible.rotation.y += collectible.userData.rotationSpeed
     
     // Remove collectibles that are behind the camera
-    if (collectible.position.z > 5) {
+    if (collectible.position.z > 10) {
       scene.remove(collectible)
       collectibles = collectibles.filter(c => c !== collectible)
     }
@@ -614,7 +879,7 @@ function moveObjects() {
     const lastZ = Math.min(
       ...obstacles.map(o => o.position.z),
       ...collectibles.map(c => c.position.z),
-      -SAFE_START_DISTANCE
+      -SAFE_START_DISTANCE + 15
     )
     
     if (lastZ > -WORLD_DEPTH + 20) {
@@ -725,6 +990,9 @@ function animate() {
     
     // Always animate raccoon legs for visual appeal
     animateRaccoonRunning()
+    
+    // Animate environmental elements
+    animateEnvironment()
   }
   
   // Render the scene
@@ -749,6 +1017,43 @@ function animateRaccoonRunning() {
   if (!isJumping) {
     raccoon.position.y = raccoonDefaultY + Math.sin(time * 2) * 0.05
   }
+}
+
+// Animate environmental elements (clouds and trees)
+function animateEnvironment() {
+  const time = Date.now() * 0.001
+  
+  // Animate clouds
+  clouds.forEach(cloud => {
+    // Move clouds slowly across the sky
+    cloud.position.x += cloud.userData.speed
+    
+    // Reset cloud position when it moves too far
+    if (cloud.position.x > 50) {
+      cloud.position.x = -50
+      cloud.position.z = -Math.random() * WORLD_DEPTH
+    }
+  })
+  
+  // Animate trees (gentle swaying)
+  trees.forEach(tree => {
+    const swayAmount = tree.userData.swayAmount
+    const swaySpeed = tree.userData.swaySpeed
+    
+    // Gentle swaying motion
+    tree.rotation.z = Math.sin(time * swaySpeed) * swayAmount
+    
+    // If the game has started, move trees with the world
+    if (isGameStarted) {
+      tree.position.z += GAME_SPEED
+      
+      // Reset tree position when it moves behind the camera
+      if (tree.position.z > 10) {
+        tree.position.z = -WORLD_DEPTH
+        tree.position.x = tree.userData.originalX
+      }
+    }
+  })
 }
 
 // Start the game
