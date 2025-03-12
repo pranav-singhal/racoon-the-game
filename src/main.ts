@@ -11,11 +11,14 @@ const COLLECTIBLE_PROBABILITY = 0.3
 const WORLD_DEPTH = 100
 const JUMP_FORCE = 0.2 
 const GRAVITY = 0.008
+const SAFE_START_DISTANCE = 40 // Distance at the start with no obstacles
 
 // Game state
 let score = 0
 let isGameOver = false
 let animationId: number
+let isGameStarted = false
+let countdownValue = 3
 
 // Game elements
 let scene: THREE.Scene
@@ -41,12 +44,15 @@ const scoreDisplay = document.getElementById('score-display') as HTMLElement
 const gameOverDisplay = document.getElementById('game-over') as HTMLElement
 const finalScoreDisplay = document.getElementById('final-score') as HTMLElement
 const restartButton = document.getElementById('restart-button') as HTMLElement
+const countdownDisplay = document.getElementById('countdown') as HTMLElement
 
 // Initialize the game
 function init() {
   // Reset game state
   score = 0
   isGameOver = false
+  isGameStarted = false
+  countdownValue = 3
   obstacles = []
   collectibles = []
   currentLane = 1
@@ -101,7 +107,7 @@ function init() {
   createRaccoon()
   raccoonDefaultY = 0
 
-  // Generate initial obstacles and collectibles
+  // Generate initial world with a safe start area
   generateWorld()
 
   // Add event listeners
@@ -110,8 +116,32 @@ function init() {
   window.addEventListener('keydown', onKeyDown)
   restartButton.addEventListener('click', restartGame)
 
+  // Start the countdown
+  startCountdown()
+
   // Start the game loop
   animate()
+}
+
+// Start the countdown
+function startCountdown() {
+  // Show the countdown display
+  countdownDisplay.style.display = 'block'
+  countdownDisplay.textContent = countdownValue.toString()
+  
+  // Update the countdown every second
+  const countdownInterval = setInterval(() => {
+    countdownValue--
+    
+    if (countdownValue > 0) {
+      countdownDisplay.textContent = countdownValue.toString()
+    } else {
+      // Countdown finished, start the game
+      clearInterval(countdownInterval)
+      countdownDisplay.style.display = 'none'
+      isGameStarted = true
+    }
+  }, 1000)
 }
 
 // Create the running path
@@ -274,7 +304,7 @@ function generateWorld() {
   collectibles = []
   
   // Generate new obstacles and collectibles
-  for (let z = -10; z > -WORLD_DEPTH; z -= OBSTACLE_DISTANCE) {
+  for (let z = -SAFE_START_DISTANCE; z > -WORLD_DEPTH; z -= OBSTACLE_DISTANCE) {
     // Randomly decide which lanes will have obstacles
     const laneObstacles = Array(LANE_COUNT).fill(false).map(() => Math.random() < OBSTACLE_PROBABILITY)
     
@@ -413,8 +443,8 @@ function onMouseMove(event: MouseEvent) {
 
 // Handle keyboard input
 function onKeyDown(event: KeyboardEvent) {
-  // Check for space bar press and make sure we're not already jumping
-  if ((event.code === 'Space' || event.key === ' ') && !isJumping && !isGameOver) {
+  // Only allow jumping if the game has started
+  if ((event.code === 'Space' || event.key === ' ') && !isJumping && !isGameOver && isGameStarted) {
     jump()
     // Prevent default space bar behavior (like page scrolling)
     event.preventDefault()
@@ -477,6 +507,9 @@ function updateJumpPhysics() {
 
 // Move obstacles and collectibles
 function moveObjects() {
+  // Only move objects if the game has started
+  if (!isGameStarted) return
+  
   // Move obstacles
   obstacles.forEach(obstacle => {
     obstacle.position.z += GAME_SPEED
@@ -490,24 +523,24 @@ function moveObjects() {
   
   // Move collectibles
   collectibles.forEach(collectible => {
-    collectible.position.z += GAME_SPEED;
+    collectible.position.z += GAME_SPEED
     
     // Rotate collectibles - now rotating the whole clover
-    collectible.rotation.y += collectible.userData.rotationSpeed;
+    collectible.rotation.y += collectible.userData.rotationSpeed
     
     // Remove collectibles that are behind the camera
     if (collectible.position.z > 5) {
-      scene.remove(collectible);
-      collectibles = collectibles.filter(c => c !== collectible);
+      scene.remove(collectible)
+      collectibles = collectibles.filter(c => c !== collectible)
     }
-  });
+  })
   
   // Generate new obstacles and collectibles if needed
   if (obstacles.length + collectibles.length < 20) {
     const lastZ = Math.min(
       ...obstacles.map(o => o.position.z),
       ...collectibles.map(c => c.position.z),
-      -10
+      -SAFE_START_DISTANCE
     )
     
     if (lastZ > -WORLD_DEPTH + 20) {
@@ -568,13 +601,17 @@ function checkCollisions() {
 
 // Update the score display
 function updateScoreDisplay() {
-  scoreDisplay.textContent = `Score: ${score}`
+  // Round the score to the nearest integer
+  const roundedScore = Math.round(score)
+  scoreDisplay.textContent = `Score: ${roundedScore}`
 }
 
 // Game over
 function gameOver() {
   isGameOver = true
-  finalScoreDisplay.textContent = `Your score: ${score}`
+  // Round the score to the nearest integer for consistency
+  const roundedScore = Math.round(score)
+  finalScoreDisplay.textContent = `Your score: ${roundedScore}`
   gameOverDisplay.style.display = 'block'
   cancelAnimationFrame(animationId)
 }
@@ -590,26 +627,30 @@ function animate() {
   animationId = requestAnimationFrame(animate)
   
   if (!isGameOver) {
-    // Update raccoon position
+    // Always update raccoon position for smooth control
     updateRaccoonPosition()
     
-    // Update jump physics separately
-    updateJumpPhysics()
-    
-    // Animate raccoon legs for running effect
-    animateRaccoonRunning()
-    
-    // Move obstacles and collectibles
-    moveObjects()
-    
-    // Check for collisions
-    checkCollisions()
-    
-    // Increment score
-    score += 0.1
-    if (Math.floor(score) % 10 === 0) {
-      updateScoreDisplay()
+    // Only update game elements if the game has started
+    if (isGameStarted) {
+      // Update jump physics separately
+      updateJumpPhysics()
+      
+      // Move obstacles and collectibles
+      moveObjects()
+      
+      // Check for collisions
+      checkCollisions()
+      
+      // Increment score
+      score += 0.1
+      // Update score display every 5 frames to avoid too frequent updates
+      if (Math.floor(score * 10) % 5 === 0) {
+        updateScoreDisplay()
+      }
     }
+    
+    // Always animate raccoon legs for visual appeal
+    animateRaccoonRunning()
   }
   
   // Render the scene

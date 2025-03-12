@@ -52,11 +52,25 @@
         cursor: pointer;
         border-radius: 5px;
       }
+      #countdown {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 120px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+        z-index: 150;
+        display: none;
+      }
     </style>
   </head>
   <body>
     <div id="game-container"></div>
     <div id="score-display">Score: 0</div>
+    <div id="countdown">3</div>
     <div id="game-over">
       <h2>Game Over!</h2>
       <p id="final-score">Your score: 0</p>
