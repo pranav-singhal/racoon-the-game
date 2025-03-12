@@ -26,6 +26,15 @@
         font-family: Arial, sans-serif;
         z-index: 100;
       }
+      #clover-display {
+        position: absolute;
+        top: 50px;
+        right: 20px;
+        font-size: 24px;
+        color: white;
+        font-family: Arial, sans-serif;
+        z-index: 100;
+      }
       #game-over {
         position: absolute;
         top: 50%;
@@ -69,11 +78,13 @@
   </head>
   <body>
     <div id="game-container"></div>
-    <div id="score-display">Score: 0</div>
+    <div id="score-display">Distance: 0</div>
+    <div id="clover-display">Clovers: 0</div>
     <div id="countdown">3</div>
     <div id="game-over">
       <h2>Game Over!</h2>
-      <p id="final-score">Your score: 0</p>
+      <p id="final-score">Distance: 0</p>
+      <p id="final-clover-display">Clovers: 0</p>
       <button id="restart-button">Play Again</button>
     </div>
     <script type="module" src="/src/main.ts"></script>

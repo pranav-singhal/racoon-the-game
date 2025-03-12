@@ -17,6 +17,7 @@ const TREE_COUNT = 30 // Number of trees on each side
 
 // Game state
 let score = 0
+let cloverCount = 0 // Track clovers separately
 let isGameOver = false
 let animationId: number
 let isGameStarted = false
@@ -45,8 +46,10 @@ let raccoonDefaultY = 0
 // DOM elements
 const gameContainer = document.getElementById('game-container') as HTMLElement
 const scoreDisplay = document.getElementById('score-display') as HTMLElement
+const cloverDisplay = document.getElementById('clover-display') as HTMLElement // New element for clover count
 const gameOverDisplay = document.getElementById('game-over') as HTMLElement
 const finalScoreDisplay = document.getElementById('final-score') as HTMLElement
+const finalCloverDisplay = document.getElementById('final-clover-display') as HTMLElement // New element for final clover count
 const restartButton = document.getElementById('restart-button') as HTMLElement
 const countdownDisplay = document.getElementById('countdown') as HTMLElement
 
@@ -54,6 +57,7 @@ const countdownDisplay = document.getElementById('countdown') as HTMLElement
 function init() {
   // Reset game state
   score = 0
+  cloverCount = 0 // Reset clover count
   isGameOver = false
   isGameStarted = false
   countdownValue = 3
@@ -66,6 +70,7 @@ function init() {
   isJumping = false
   jumpVelocity = 0
   updateScoreDisplay()
+  updateCloverDisplay() // Initialize clover display
 
   // Create scene
   scene = new THREE.Scene()
@@ -440,6 +445,12 @@ function createTree(side: number, index: number) {
 function createRaccoon() {
   // Create a group for the raccoon
   raccoon = new THREE.Group()
+  
+  // Add user data for special effects
+  raccoon.userData = {
+    legs: null,
+    lastSpecialCount: 0 // Track the last special count we've shown feedback for
+  }
   
   // Body - more elongated for a quadruped
   const bodyGeometry = new THREE.BoxGeometry(0.7, 0.5, 1.2)
@@ -931,9 +942,9 @@ function checkCollisions() {
       scene.remove(collectible)
       collectibles = collectibles.filter(c => c !== collectible)
       
-      // Increase score
-      score += 10
-      updateScoreDisplay()
+      // Increase clover count instead of score
+      cloverCount += 1
+      updateCloverDisplay()
     }
   }
 }
@@ -942,7 +953,124 @@ function checkCollisions() {
 function updateScoreDisplay() {
   // Round the score to the nearest integer
   const roundedScore = Math.round(score)
-  scoreDisplay.textContent = `Score: ${roundedScore}`
+  scoreDisplay.textContent = `Distance: ${roundedScore}`
+}
+
+// Update the clover display
+function updateCloverDisplay() {
+  cloverDisplay.textContent = `Clovers: ${cloverCount}`
+  
+  // Check for special clover counts (4, 44, 444)
+  checkSpecialCloverCount()
+}
+
+// Function to check for special clover counts and provide funky feedback
+function checkSpecialCloverCount() {
+  // Only trigger once for each special number
+  if (cloverCount === 4 || cloverCount === 44 || cloverCount === 444) {
+    // Store the current count to check if we've already shown feedback for this count
+    if (raccoon.userData.lastSpecialCount === cloverCount) {
+      return // Already shown feedback for this count
+    }
+    
+    // Remember this count
+    raccoon.userData.lastSpecialCount = cloverCount
+    
+    // Create a special text message
+    const specialMessage = document.createElement('div')
+    specialMessage.style.position = 'absolute'
+    specialMessage.style.top = '50%'
+    specialMessage.style.left = '50%'
+    specialMessage.style.transform = 'translate(-50%, -50%)'
+    specialMessage.style.fontSize = cloverCount === 444 ? '80px' : '60px'
+    specialMessage.style.color = '#FFD700' // Gold color
+    specialMessage.style.fontFamily = 'Arial, sans-serif'
+    specialMessage.style.fontWeight = 'bold'
+    specialMessage.style.textShadow = '0 0 10px #FF00FF, 0 0 20px #FF00FF, 0 0 30px #FF00FF' // Neon glow
+    specialMessage.style.zIndex = '300'
+    specialMessage.style.opacity = '1'
+    specialMessage.style.transition = 'opacity 2s, transform 2s'
+    
+    // Different messages for different counts
+    if (cloverCount === 4) {
+      specialMessage.textContent = '4️⃣ FOUR-TUNATE! 4️⃣'
+    } else if (cloverCount === 44) {
+      specialMessage.textContent = '4️⃣4️⃣ DOUBLE FOUR-TUNE! 4️⃣4️⃣'
+    } else if (cloverCount === 444) {
+      specialMessage.textContent = '4️⃣4️⃣4️⃣ ULTIMATE FOUR-TUNE!!! 4️⃣4️⃣4️⃣'
+    }
+    
+    document.body.appendChild(specialMessage)
+    
+    // Visual effects on the raccoon
+    const originalScale = { x: 1, y: 1, z: 1 }
+    
+    // Store original colors of raccoon parts with proper typing
+    interface ColorData {
+      mesh: THREE.Mesh;
+      material: THREE.MeshStandardMaterial;
+      color: THREE.Color;
+    }
+    
+    const originalColors: ColorData[] = []
+    raccoon.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+        originalColors.push({
+          mesh: child,
+          material: child.material,
+          color: child.material.color.clone()
+        })
+      }
+    })
+    
+    // Funky color animation
+    let colorPhase = 0
+    const colorInterval = setInterval(() => {
+      raccoon.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+          // Rainbow color cycling
+          child.material.color.setHSL((colorPhase + Math.random() * 0.2) % 1, 0.8, 0.6)
+        }
+      })
+      colorPhase += 0.1
+    }, 100)
+    
+    // Funky scale animation
+    let scalePhase = 0
+    const scaleInterval = setInterval(() => {
+      const pulseScale = 1 + 0.2 * Math.sin(scalePhase)
+      raccoon.scale.set(pulseScale, pulseScale, pulseScale)
+      scalePhase += 0.2
+    }, 50)
+    
+    // End the effects after a few seconds
+    setTimeout(() => {
+      // Fade out the message
+      specialMessage.style.opacity = '0'
+      specialMessage.style.transform = 'translate(-50%, -150%)'
+      
+      // Stop the intervals
+      clearInterval(colorInterval)
+      clearInterval(scaleInterval)
+      
+      // Reset raccoon appearance
+      raccoon.scale.set(1, 1, 1)
+      
+      // Restore original colors
+      originalColors.forEach(item => {
+        item.material.color.copy(item.color)
+      })
+      
+      // Remove the message element after fade out
+      setTimeout(() => {
+        document.body.removeChild(specialMessage)
+      }, 2000)
+    }, 4000)
+    
+    // Play a special sound (if you want to add sound)
+    // const specialSound = new Audio('path/to/special-sound.mp3')
+    // specialSound.play()
+  }
 }
 
 // Game over
@@ -950,7 +1078,8 @@ function gameOver() {
   isGameOver = true
   // Round the score to the nearest integer for consistency
   const roundedScore = Math.round(score)
-  finalScoreDisplay.textContent = `Your score: ${roundedScore}`
+  finalScoreDisplay.textContent = `Distance: ${roundedScore}`
+  finalCloverDisplay.textContent = `Clovers: ${cloverCount}`
   gameOverDisplay.style.display = 'block'
   cancelAnimationFrame(animationId)
 }
@@ -980,7 +1109,7 @@ function animate() {
       // Check for collisions
       checkCollisions()
       
-      // Increment score
+      // Increment score (now represents distance traveled)
       score += 0.1
       // Update score display every 5 frames to avoid too frequent updates
       if (Math.floor(score * 10) % 5 === 0) {
