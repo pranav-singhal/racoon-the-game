@@ -9,8 +9,8 @@ const OBSTACLE_DISTANCE = 20
 const OBSTACLE_PROBABILITY = 0.5
 const COLLECTIBLE_PROBABILITY = 0.3
 const WORLD_DEPTH = 100
-const JUMP_FORCE = 0.3
-const GRAVITY = 0.015
+const JUMP_FORCE = 0.2 
+const GRAVITY = 0.008
 
 // Game state
 let score = 0
@@ -99,7 +99,7 @@ function init() {
 
   // Create the raccoon character
   createRaccoon()
-  raccoonDefaultY = raccoon.position.y
+  raccoonDefaultY = 0
 
   // Generate initial obstacles and collectibles
   generateWorld()
@@ -341,27 +341,57 @@ function createObstacle(lane: number, z: number) {
 
 // Create a collectible
 function createCollectible(lane: number, z: number) {
-  // Create a simple coin/acorn as a collectible
-  const collectibleGeometry = new THREE.SphereGeometry(0.3, 16, 16)
-  const collectibleMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xFFD700, // Gold color
-    emissive: 0xFFD700,
-    emissiveIntensity: 0.5
-  })
-  const collectible = new THREE.Mesh(collectibleGeometry, collectibleMaterial)
+  // Create a 4-leaf clover as a collectible
+  const clover = new THREE.Group();
   
-  // Position the collectible
-  const lanePosition = getLanePosition(lane)
-  collectible.position.x = lanePosition
-  collectible.position.y = 0.8 // Slightly above the ground
-  collectible.position.z = z
-  collectible.userData = { type: 'collectible' }
+  // Create the stem
+  const stemGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+  const stemMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x228B22, // Forest green
+  });
+  const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+  stem.position.y = -0.2;
+  stem.castShadow = true;
+  clover.add(stem);
   
-  // Add a rotation animation
-  collectible.userData.rotationSpeed = 0.05
+  // Create the four leaves
+  const leafGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+  const leafMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x32CD32, // Lime green
+    emissive: 0x32CD32,
+    emissiveIntensity: 0.2
+  });
   
-  scene.add(collectible)
-  collectibles.push(collectible)
+  // Position the four leaves in a clover pattern
+  const leafPositions = [
+    { x: 0.15, y: 0, z: 0 },    // Right
+    { x: -0.15, y: 0, z: 0 },   // Left
+    { x: 0, y: 0, z: 0.15 },    // Front
+    { x: 0, y: 0, z: -0.15 }    // Back
+  ];
+  
+  leafPositions.forEach(pos => {
+    const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+    leaf.position.set(pos.x, pos.y, pos.z);
+    leaf.castShadow = true;
+    clover.add(leaf);
+  });
+  
+  // Add a slight rotation to make it look more natural
+  clover.rotation.x = Math.PI / 6;
+  
+  // Position the clover
+  const lanePosition = getLanePosition(lane);
+  clover.position.x = lanePosition;
+  clover.position.y = 0.6; // Slightly above the ground
+  clover.position.z = z;
+  clover.userData = { 
+    type: 'collectible',
+    rotationSpeed: 0.03 // Slower rotation for the clover
+  };
+  
+  scene.add(clover);
+  collectibles.push(clover);
 }
 
 // Get the x position for a lane
@@ -383,8 +413,11 @@ function onMouseMove(event: MouseEvent) {
 
 // Handle keyboard input
 function onKeyDown(event: KeyboardEvent) {
-  if (event.code === 'Space' && !isJumping) {
+  // Check for space bar press and make sure we're not already jumping
+  if ((event.code === 'Space' || event.key === ' ') && !isJumping && !isGameOver) {
     jump()
+    // Prevent default space bar behavior (like page scrolling)
+    event.preventDefault()
   }
 }
 
@@ -393,6 +426,7 @@ function jump() {
   if (!isJumping) {
     isJumping = true
     jumpVelocity = JUMP_FORCE
+    console.log('Jump initiated! Velocity:', jumpVelocity)
   }
 }
 
@@ -417,8 +451,10 @@ function updateRaccoonPosition() {
   
   // Determine current lane
   currentLane = Math.round(raccoon.position.x / LANE_WIDTH) + 1
-  
-  // Update jump physics
+}
+
+// Update jump physics separately from position updates
+function updateJumpPhysics() {
   if (isJumping) {
     // Apply velocity to position
     raccoon.position.y += jumpVelocity
@@ -426,11 +462,15 @@ function updateRaccoonPosition() {
     // Apply gravity to velocity
     jumpVelocity -= GRAVITY
     
+    // Debug log
+    console.log('Jump physics: y =', raccoon.position.y, 'velocity =', jumpVelocity)
+    
     // Check if raccoon has landed
     if (raccoon.position.y <= raccoonDefaultY) {
       raccoon.position.y = raccoonDefaultY
       isJumping = false
       jumpVelocity = 0
+      console.log('Landed at y =', raccoon.position.y)
     }
   }
 }
@@ -450,17 +490,17 @@ function moveObjects() {
   
   // Move collectibles
   collectibles.forEach(collectible => {
-    collectible.position.z += GAME_SPEED
+    collectible.position.z += GAME_SPEED;
     
-    // Rotate collectibles
-    collectible.rotation.y += collectible.userData.rotationSpeed
+    // Rotate collectibles - now rotating the whole clover
+    collectible.rotation.y += collectible.userData.rotationSpeed;
     
     // Remove collectibles that are behind the camera
     if (collectible.position.z > 5) {
-      scene.remove(collectible)
-      collectibles = collectibles.filter(c => c !== collectible)
+      scene.remove(collectible);
+      collectibles = collectibles.filter(c => c !== collectible);
     }
-  })
+  });
   
   // Generate new obstacles and collectibles if needed
   if (obstacles.length + collectibles.length < 20) {
@@ -553,6 +593,9 @@ function animate() {
     // Update raccoon position
     updateRaccoonPosition()
     
+    // Update jump physics separately
+    updateJumpPhysics()
+    
     // Animate raccoon legs for running effect
     animateRaccoonRunning()
     
@@ -587,8 +630,10 @@ function animateRaccoonRunning() {
   legs.frontRight.position.y = 0.15 + Math.sin(time * 2 + Math.PI) * 0.1
   legs.backLeft.position.y = 0.15 + Math.sin(time * 2 + Math.PI) * 0.1
   
-  // Add a slight body bounce
-  raccoon.position.y = raccoonDefaultY + Math.sin(time * 2) * 0.05
+  // Only add the body bounce if not jumping
+  if (!isJumping) {
+    raccoon.position.y = raccoonDefaultY + Math.sin(time * 2) * 0.05
+  }
 }
 
 // Start the game
