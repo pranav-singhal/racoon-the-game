@@ -66,8 +66,9 @@ function init() {
     0.1,
     1000
   )
-  camera.position.set(0, 3, 5)
-  camera.lookAt(0, 0, -10)
+  // Position camera behind and slightly above the raccoon
+  camera.position.set(0, 4, 8)
+  camera.lookAt(0, 0, -15)
 
   // Create renderer
   renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -142,73 +143,125 @@ function createPath() {
 
 // Create the raccoon character
 function createRaccoon() {
-  // For now, we'll use a simple placeholder for the raccoon
+  // Create a group for the raccoon
   raccoon = new THREE.Group()
   
-  // Body
-  const bodyGeometry = new THREE.BoxGeometry(0.8, 0.8, 1.2)
+  // Body - more elongated for a quadruped
+  const bodyGeometry = new THREE.BoxGeometry(0.7, 0.5, 1.2)
   const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 }) // Gray color
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial)
-  body.position.y = 0.4
+  body.position.y = 0.25
   body.castShadow = true
   raccoon.add(body)
   
   // Head
-  const headGeometry = new THREE.SphereGeometry(0.5, 16, 16)
+  const headGeometry = new THREE.BoxGeometry(0.6, 0.5, 0.6)
   const headMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 }) // Gray color
   const head = new THREE.Mesh(headGeometry, headMaterial)
-  head.position.y = 1.1
-  head.position.z = 0.3
+  head.position.set(0, 0.5, 0.7)
   head.castShadow = true
   raccoon.add(head)
   
+  // Face mask (raccoon's distinctive feature)
+  const maskGeometry = new THREE.BoxGeometry(0.65, 0.25, 0.2)
+  const maskMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 }) // Dark gray/black
+  const mask = new THREE.Mesh(maskGeometry, maskMaterial)
+  mask.position.set(0, 0.5, 1.0)
+  raccoon.add(mask)
+  
   // Eyes
-  const eyeGeometry = new THREE.SphereGeometry(0.1, 8, 8)
+  const eyeGeometry = new THREE.SphereGeometry(0.08, 8, 8)
   const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 }) // Black color
   
   const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial)
-  leftEye.position.set(-0.2, 1.2, 0.7)
+  leftEye.position.set(-0.2, 0.6, 1.0)
   raccoon.add(leftEye)
   
   const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial)
-  rightEye.position.set(0.2, 1.2, 0.7)
+  rightEye.position.set(0.2, 0.6, 1.0)
   raccoon.add(rightEye)
   
   // Nose
-  const noseGeometry = new THREE.SphereGeometry(0.1, 8, 8)
+  const noseGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.1)
   const noseMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 }) // Black color
   const nose = new THREE.Mesh(noseGeometry, noseMaterial)
-  nose.position.set(0, 1.0, 0.8)
+  nose.position.set(0, 0.4, 1.1)
   raccoon.add(nose)
   
   // Ears
-  const earGeometry = new THREE.ConeGeometry(0.2, 0.4, 16)
+  const earGeometry = new THREE.ConeGeometry(0.15, 0.3, 4)
   const earMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 }) // Gray color
   
   const leftEar = new THREE.Mesh(earGeometry, earMaterial)
-  leftEar.position.set(-0.3, 1.5, 0.3)
+  leftEar.position.set(-0.25, 0.8, 0.7)
   leftEar.rotation.x = -Math.PI / 6
   raccoon.add(leftEar)
   
   const rightEar = new THREE.Mesh(earGeometry, earMaterial)
-  rightEar.position.set(0.3, 1.5, 0.3)
+  rightEar.position.set(0.25, 0.8, 0.7)
   rightEar.rotation.x = -Math.PI / 6
   raccoon.add(rightEar)
   
-  // Tail
-  const tailGeometry = new THREE.CylinderGeometry(0.1, 0.2, 1, 8)
-  const tailMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x808080,
-    side: THREE.DoubleSide
-  })
-  const tail = new THREE.Mesh(tailGeometry, tailMaterial)
-  tail.position.set(0, 0.4, -0.8)
-  tail.rotation.x = Math.PI / 2
-  raccoon.add(tail)
+  // Tail - distinctive raccoon striped tail
+  const tailGroup = new THREE.Group()
+  
+  const tailBaseGeometry = new THREE.CylinderGeometry(0.15, 0.1, 0.8, 8)
+  const tailBaseMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 }) // Gray
+  const tailBase = new THREE.Mesh(tailBaseGeometry, tailBaseMaterial)
+  tailBase.position.z = -0.4
+  tailBase.rotation.x = Math.PI / 3
+  tailGroup.add(tailBase)
+  
+  // Add stripes to tail
+  for (let i = 0; i < 3; i++) {
+    const stripeGeometry = new THREE.CylinderGeometry(0.15 - i * 0.02, 0.13 - i * 0.02, 0.15, 8)
+    const stripeMaterial = new THREE.MeshStandardMaterial({ 
+      color: i % 2 === 0 ? 0x333333 : 0x808080 // Alternating dark and light
+    })
+    const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial)
+    stripe.position.z = -0.4 - (i * 0.15)
+    stripe.rotation.x = Math.PI / 3
+    tailGroup.add(stripe)
+  }
+  
+  tailGroup.position.set(0, 0.3, -0.6)
+  raccoon.add(tailGroup)
+  
+  // Legs
+  const legGeometry = new THREE.BoxGeometry(0.15, 0.3, 0.15)
+  const legMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 }) // Darker gray
+  
+  // Front legs
+  const frontLeftLeg = new THREE.Mesh(legGeometry, legMaterial)
+  frontLeftLeg.position.set(-0.25, 0.15, 0.4)
+  raccoon.add(frontLeftLeg)
+  
+  const frontRightLeg = new THREE.Mesh(legGeometry, legMaterial)
+  frontRightLeg.position.set(0.25, 0.15, 0.4)
+  raccoon.add(frontRightLeg)
+  
+  // Back legs
+  const backLeftLeg = new THREE.Mesh(legGeometry, legMaterial)
+  backLeftLeg.position.set(-0.25, 0.15, -0.4)
+  raccoon.add(backLeftLeg)
+  
+  const backRightLeg = new THREE.Mesh(legGeometry, legMaterial)
+  backRightLeg.position.set(0.25, 0.15, -0.4)
+  raccoon.add(backRightLeg)
+  
+  // Store references to legs for animation
+  raccoon.userData.legs = {
+    frontLeft: frontLeftLeg,
+    frontRight: frontRightLeg,
+    backLeft: backLeftLeg,
+    backRight: backRightLeg
+  }
   
   // Add raccoon to the scene
   raccoon.position.y = 0
   raccoon.position.z = 0
+  // Rotate the raccoon to face forward along the track
+  raccoon.rotation.y = Math.PI
   scene.add(raccoon)
 }
 
@@ -500,6 +553,9 @@ function animate() {
     // Update raccoon position
     updateRaccoonPosition()
     
+    // Animate raccoon legs for running effect
+    animateRaccoonRunning()
+    
     // Move obstacles and collectibles
     moveObjects()
     
@@ -515,6 +571,24 @@ function animate() {
   
   // Render the scene
   renderer.render(scene, camera)
+}
+
+// Animate the raccoon's legs to create a running effect
+function animateRaccoonRunning() {
+  if (!raccoon.userData.legs) return
+  
+  const time = Date.now() * 0.01
+  const legs = raccoon.userData.legs
+  
+  // Create a running animation by moving legs up and down
+  legs.frontLeft.position.y = 0.15 + Math.sin(time * 2) * 0.1
+  legs.backRight.position.y = 0.15 + Math.sin(time * 2) * 0.1
+  
+  legs.frontRight.position.y = 0.15 + Math.sin(time * 2 + Math.PI) * 0.1
+  legs.backLeft.position.y = 0.15 + Math.sin(time * 2 + Math.PI) * 0.1
+  
+  // Add a slight body bounce
+  raccoon.position.y = raccoonDefaultY + Math.sin(time * 2) * 0.05
 }
 
 // Start the game
